@@ -1,4 +1,5 @@
-import { createInitialTokenBoardState, createTokenBoardView, type TokenBoardView } from "./core/tokenBoard";
+import { createTokenBoardView, loadTokenBoardState, type TokenBoardView } from "./core/tokenBoard";
+import { store } from "./storage";
 
 const app = document.querySelector<HTMLDivElement>("#app");
 
@@ -160,7 +161,13 @@ function installStyles(): void {
 
 installStyles();
 
-if (app) {
-  const state = createInitialTokenBoardState();
+async function mount(): Promise<void> {
+  if (!app) {
+    return;
+  }
+
+  const state = await loadTokenBoardState(store);
   app.innerHTML = render(createTokenBoardView(state));
 }
+
+void mount();
