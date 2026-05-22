@@ -3,11 +3,14 @@ import {
   addRewardGoal,
   createTokenBoardView,
   deleteRewardGoal,
+  exchangeReward,
   removeToken,
   restoreTokenBoardState,
   saveTokenBoardState,
   selectRewardGoal,
   setParentPin,
+  startPremiumTrial,
+  STRIPE_CHECKOUT_URL,
   switchToChildMode,
   unlockParentMode,
   updateRewardGoal,
@@ -76,6 +79,31 @@ function renderExchangeEffect(view: TokenBoardView): string {
   `;
 }
 
+function renderPremiumPanel(view: TokenBoardView): string {
+  const statusLabel =
+    view.premiumStatus === "premium"
+      ? t("premiumStatusPremium")
+      : view.premiumStatus === "trial"
+        ? t("premiumStatusTrial", String(view.trialDaysRemaining))
+        : t("premiumStatusFree");
+  const trialButton = view.canStartTrial
+    ? `<button class="secondary-button" type="button" data-action="start-trial">${escapeHtml(t("startTrial"))}</button>`
+    : "";
+
+  return `
+    <section class="premium-panel" aria-label="${escapeHtml(t("premiumPanelLabel"))}">
+      <div>
+        <span class="premium-badge">${escapeHtml(statusLabel)}</span>
+        <p>${escapeHtml(t("premiumDescription"))}</p>
+      </div>
+      <div class="premium-actions">
+        ${trialButton}
+        <a class="link-button" href="${escapeHtml(STRIPE_CHECKOUT_URL)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("openStripeCheckout"))}</a>
+      </div>
+    </section>
+  `;
+}
+
 function renderModePanel(view: TokenBoardView): string {
   const modeLabel = view.mode === "parent" ? t("parentMode") : t("childMode");
   const panelBody =
@@ -121,6 +149,7 @@ function renderGoalForm(view: TokenBoardView): string {
   const name = editingGoal?.name ?? "";
   const emoji = editingGoal?.emoji ?? "🎁";
   const requiredTokens = editingGoal?.requiredTokens ?? 10;
+  const addDisabled = !editingGoal && !view.canAddGoal;
 
   return `
     <form id="goal-form" class="goal-form">
@@ -138,12 +167,48 @@ function renderGoalForm(view: TokenBoardView): string {
           <input id="goal-required-tokens" name="requiredTokens" class="text-input" type="number" min="1" max="50" value="${requiredTokens}" required>
         </div>
       </div>
+      ${addDisabled ? `<p class="form-error">${escapeHtml(t("premiumGoalLimit"))}</p>` : ""}
       ${formError ? `<p class="form-error">${escapeHtml(formError)}</p>` : ""}
       <div class="form-actions">
-        <button class="primary-button" type="submit">${escapeHtml(submitLabel)}</button>
+        <button class="primary-button" type="submit"${addDisabled ? " disabled" : ""}>${escapeHtml(submitLabel)}</button>
         ${editingGoal ? `<button class="secondary-button" type="button" data-action="cancel-edit">${escapeHtml(t("cancel"))}</button>` : ""}
       </div>
     </form>
+  `;
+}
+
+function formatExchangeDate(timestamp: number): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function renderExchangeHistory(view: TokenBoardView): string {
+  if (!view.premiumActive) {
+    return `<p class="premium-note">${escapeHtml(t("premiumHistoryGate"))}</p>`;
+  }
+
+  if (view.exchangeHistory.length === 0) {
+    return `<p class="premium-note">${escapeHtml(t("exchangeHistoryEmpty"))}</p>`;
+  }
+
+  return `
+    <ul class="history-list" aria-label="${escapeHtml(t("exchangeHistoryLabel"))}">
+      ${view.exchangeHistory
+        .map(
+          (entry) => `
+            <li class="history-item">
+              <span class="goal-item-emoji" aria-hidden="true">${escapeHtml(entry.goalEmoji)}</span>
+              <span class="history-main">${escapeHtml(entry.goalName)}</span>
+              <span class="goal-item-count">${escapeHtml(t("historyTokenCount", [String(entry.tokensSpent), formatExchangeDate(entry.exchangedAt)]))}</span>
+            </li>
+          `,
+        )
+        .join("")}
+    </ul>
   `;
 }
 
@@ -209,14 +274,22 @@ function render(view: TokenBoardView): string {
       }
 
       ${renderExchangeEffect(view)}
+      ${
+        canEdit && view.canExchange
+          ? `<button class="primary-button" type="button" data-action="exchange-reward">${escapeHtml(t("exchangeReward"))}</button>`
+          : ""
+      }
     </section>
 
     ${
       canEdit
         ? `<section class="editor-panel" aria-labelledby="editor-heading">
+      ${renderPremiumPanel(view)}
       <h3 id="editor-heading">${escapeHtml(t("goalEditorHeading"))}</h3>
       ${renderGoalForm(view)}
       ${renderGoalList(view)}
+      <h3>${escapeHtml(t("exchangeHistoryHeading"))}</h3>
+      ${renderExchangeHistory(view)}
     </section>`
         : ""
     }
@@ -284,6 +357,33 @@ function installStyles(): void {
       margin-top: 18px;
       padding-top: 14px;
       border-top: 1px solid #e1e7ea;
+    }
+
+    .premium-panel {
+      display: grid;
+      gap: 8px;
+      border: 1px solid #d7e3dc;
+      border-radius: 8px;
+      background: #f7fbf8;
+      padding: 10px;
+    }
+
+    .premium-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 6px;
+      background: #fff3c4;
+      color: #614300;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 2px 8px;
+    }
+
+    .premium-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
     }
 
     .field-label {
@@ -359,13 +459,24 @@ function installStyles(): void {
       grid-template-columns: 1fr auto;
     }
 
-    button {
+    button,
+    .link-button {
       border: 1px solid #9db1b8;
       border-radius: 6px;
       cursor: pointer;
       font: inherit;
       min-height: 32px;
       padding: 6px 10px;
+    }
+
+    .link-button {
+      box-sizing: border-box;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #ffffff;
+      color: #263238;
+      text-decoration: none;
     }
 
     button:disabled {
@@ -557,6 +668,32 @@ function installStyles(): void {
       padding: 0;
     }
 
+    .history-list {
+      display: grid;
+      gap: 6px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .history-item {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid #e1e7ea;
+      padding: 6px 0;
+    }
+
+    .history-main {
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .premium-note {
+      margin: 0;
+    }
+
     .goal-item {
       display: grid;
       gap: 8px;
@@ -631,7 +768,7 @@ function renderCurrentState(): void {
     return;
   }
 
-  app.innerHTML = render(createTokenBoardView(currentState));
+  app.innerHTML = render(createTokenBoardView(currentState, Date.now()));
 }
 
 function handleGoalFormSubmit(event: SubmitEvent): void {
@@ -643,9 +780,17 @@ function handleGoalFormSubmit(event: SubmitEvent): void {
 
   try {
     const draft = getGoalDraft(event.currentTarget);
+    const view = createTokenBoardView(currentState, Date.now());
+
+    if (!editingGoalId && !view.canAddGoal) {
+      formError = t("premiumGoalLimit");
+      renderCurrentState();
+      return;
+    }
+
     const nextState = editingGoalId
       ? updateRewardGoal(currentState, editingGoalId, draft)
-      : addRewardGoal(currentState, draft);
+      : addRewardGoal(currentState, draft, Date.now());
 
     editingGoalId = null;
     formError = "";
@@ -718,19 +863,33 @@ function handleAppClick(event: MouseEvent): void {
     return;
   }
 
+  if (action === "start-trial") {
+    editingGoalId = null;
+    formError = "";
+    modeError = "";
+    void saveAndRender(startPremiumTrial(currentState, Date.now()));
+    return;
+  }
+
   if (currentState.mode !== "parent") {
     return;
   }
 
   if (action === "add-token") {
     formError = "";
-    void saveAndRender(addToken(currentState));
+    void saveAndRender(addToken(currentState, Date.now()));
     return;
   }
 
   if (action === "remove-token") {
     formError = "";
     void saveAndRender(removeToken(currentState));
+    return;
+  }
+
+  if (action === "exchange-reward") {
+    formError = "";
+    void saveAndRender(exchangeReward(currentState, Date.now()));
     return;
   }
 
@@ -764,7 +923,7 @@ app?.addEventListener("change", (event) => {
   editingGoalId = null;
   formError = "";
   modeError = "";
-  void saveAndRender(selectRewardGoal(currentState, select.value));
+  void saveAndRender(selectRewardGoal(currentState, select.value, Date.now()));
 });
 app?.addEventListener("submit", (event) => {
   const targetId = (event.target as HTMLElement | null)?.id;

@@ -17,6 +17,10 @@
     }
   },
   "exchangeReady": { "message": "Ready to trade" },
+  "exchangeReward": { "message": "Trade reward" },
+  "exchangeHistoryEmpty": { "message": "No trades yet." },
+  "exchangeHistoryHeading": { "message": "Trade history" },
+  "exchangeHistoryLabel": { "message": "Trade history" },
   "goalBoardLabel": { "message": "Token board" },
   "goalEditorHeading": { "message": "Goal editor" },
   "goalEmojiLabel": { "message": "Emoji" },
@@ -24,12 +28,32 @@
   "goalLabel": { "message": "Goal" },
   "goalListLabel": { "message": "Goal list" },
   "goalNameLabel": { "message": "Name" },
+  "historyTokenCount": {
+    "message": "$count$ tokens - $date$",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "date": { "content": "$2" }
+    }
+  },
   "modePanelLabel": { "message": "Mode switcher" },
+  "openStripeCheckout": { "message": "Open checkout" },
   "parentMode": { "message": "Parent mode" },
   "pinLabel": { "message": "PIN" },
   "pinFormatError": { "message": "Enter a 4 to 8 digit PIN." },
   "pinMismatchError": { "message": "PIN does not match." },
   "pinRequiredError": { "message": "Set a 4 to 8 digit PIN first." },
+  "premiumDescription": { "message": "Free allows one goal. Trial or Premium unlocks unlimited goals and trade history." },
+  "premiumGoalLimit": { "message": "Start the 7 day trial or get Premium to add more goals." },
+  "premiumHistoryGate": { "message": "Trade history is available during the trial or with Premium." },
+  "premiumPanelLabel": { "message": "Premium" },
+  "premiumStatusFree": { "message": "Free" },
+  "premiumStatusPremium": { "message": "Premium" },
+  "premiumStatusTrial": {
+    "message": "Trial $days$ days left",
+    "placeholders": {
+      "days": { "content": "$1" }
+    }
+  },
   "remainingTokens": {
     "message": "$count$ left",
     "placeholders": {
@@ -40,6 +64,7 @@
   "requiredTokensLabel": { "message": "Required" },
   "set": { "message": "Set" },
   "setPin": { "message": "Set PIN" },
+  "startTrial": { "message": "Start 7 day trial" },
   "switchToChildMode": { "message": "Switch to child mode" },
   "tokenActionsLabel": { "message": "Token actions" },
   "tokenBoardLabel": { "message": "Token board" },

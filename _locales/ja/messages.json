@@ -17,6 +17,10 @@
     }
   },
   "exchangeReady": { "message": "こうかんできるよ" },
+  "exchangeReward": { "message": "交換する" },
+  "exchangeHistoryEmpty": { "message": "交換履歴はまだありません" },
+  "exchangeHistoryHeading": { "message": "交換履歴" },
+  "exchangeHistoryLabel": { "message": "交換履歴" },
   "goalBoardLabel": { "message": "トークン台紙" },
   "goalEditorHeading": { "message": "ゴール編集" },
   "goalEmojiLabel": { "message": "絵文字" },
@@ -24,12 +28,32 @@
   "goalLabel": { "message": "ゴール" },
   "goalListLabel": { "message": "ゴール一覧" },
   "goalNameLabel": { "message": "名前" },
+  "historyTokenCount": {
+    "message": "$count$こ・$date$",
+    "placeholders": {
+      "count": { "content": "$1" },
+      "date": { "content": "$2" }
+    }
+  },
   "modePanelLabel": { "message": "モード切替" },
+  "openStripeCheckout": { "message": "購入ページを開く" },
   "parentMode": { "message": "保護者モード" },
   "pinLabel": { "message": "PIN" },
   "pinFormatError": { "message": "PINは4〜8桁の数字で入力してください" },
   "pinMismatchError": { "message": "PINが違います" },
   "pinRequiredError": { "message": "先に4〜8桁のPINを設定してください" },
+  "premiumDescription": { "message": "無料はゴール1つまで。トライアル中またはPremiumではゴール無制限と交換履歴を使えます。" },
+  "premiumGoalLimit": { "message": "ゴールを追加するには7日トライアルまたはPremiumが必要です" },
+  "premiumHistoryGate": { "message": "交換履歴は7日トライアルまたはPremiumで使えます" },
+  "premiumPanelLabel": { "message": "Premium" },
+  "premiumStatusFree": { "message": "無料" },
+  "premiumStatusPremium": { "message": "Premium" },
+  "premiumStatusTrial": {
+    "message": "トライアル 残り$days$日",
+    "placeholders": {
+      "days": { "content": "$1" }
+    }
+  },
   "remainingTokens": {
     "message": "あと $count$ こ",
     "placeholders": {
@@ -40,6 +64,7 @@
   "requiredTokensLabel": { "message": "必要数" },
   "set": { "message": "設定" },
   "setPin": { "message": "PIN設定" },
+  "startTrial": { "message": "7日トライアル開始" },
   "switchToChildMode": { "message": "子供モードにする" },
   "tokenActionsLabel": { "message": "トークン操作" },
   "tokenBoardLabel": { "message": "トークン台紙" },

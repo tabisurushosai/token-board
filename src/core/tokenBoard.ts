@@ -12,6 +12,21 @@ export interface RewardGoalDraft {
 }
 
 export type AppMode = "parent" | "child";
+export type PremiumStatus = "free" | "trial" | "premium";
+
+export interface PremiumAccess {
+  trialStartedAt: number | null;
+  premiumPurchasedAt: number | null;
+}
+
+export interface ExchangeHistoryEntry {
+  id: string;
+  goalId: string;
+  goalName: string;
+  goalEmoji: string;
+  tokensSpent: number;
+  exchangedAt: number;
+}
 
 export interface TokenBoardState {
   goals: RewardGoal[];
@@ -19,6 +34,8 @@ export interface TokenBoardState {
   earnedTokens: number;
   mode: AppMode;
   parentPin: string | null;
+  premium: PremiumAccess;
+  exchangeHistory: ExchangeHistoryEntry[];
 }
 
 export interface TokenBoardStateStore {
@@ -41,6 +58,12 @@ export interface TokenBoardView {
   canExchange: boolean;
   mode: AppMode;
   parentPinSet: boolean;
+  premiumStatus: PremiumStatus;
+  premiumActive: boolean;
+  trialDaysRemaining: number;
+  canStartTrial: boolean;
+  canAddGoal: boolean;
+  exchangeHistory: ExchangeHistoryEntry[];
   slots: TokenSlot[];
 }
 
@@ -53,6 +76,11 @@ const defaultGoal: RewardGoal = {
 
 export const TOKEN_BOARD_STATE_KEY = "tokenBoardState";
 const MAX_REQUIRED_TOKENS = 50;
+export const FREE_GOAL_LIMIT = 1;
+export const TRIAL_DAYS = 7;
+export const STRIPE_CHECKOUT_URL = "https://buy.stripe.com/test_token_board_premium";
+const TRIAL_MS = TRIAL_DAYS * 24 * 60 * 60 * 1000;
+const MAX_HISTORY_ENTRIES = 50;
 
 export function createInitialTokenBoardState(): TokenBoardState {
   return {
@@ -61,6 +89,11 @@ export function createInitialTokenBoardState(): TokenBoardState {
     earnedTokens: 0,
     mode: "parent",
     parentPin: null,
+    premium: {
+      trialStartedAt: null,
+      premiumPurchasedAt: null,
+    },
+    exchangeHistory: [],
   };
 }
 
@@ -122,6 +155,60 @@ function normalizeParentPin(value: unknown): string | null {
   return /^\d{4,8}$/.test(pin) ? pin : null;
 }
 
+function normalizeTimestamp(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : null;
+}
+
+function normalizePremiumAccess(value: unknown): PremiumAccess {
+  if (!isRecord(value)) {
+    return {
+      trialStartedAt: null,
+      premiumPurchasedAt: null,
+    };
+  }
+
+  return {
+    trialStartedAt: normalizeTimestamp(value.trialStartedAt),
+    premiumPurchasedAt: normalizeTimestamp(value.premiumPurchasedAt),
+  };
+}
+
+function normalizeExchangeHistoryEntry(value: unknown): ExchangeHistoryEntry | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = typeof value.id === "string" && value.id.trim() ? value.id : null;
+  const goalId = typeof value.goalId === "string" && value.goalId.trim() ? value.goalId : null;
+  const goalName = typeof value.goalName === "string" && value.goalName.trim() ? value.goalName : null;
+  const goalEmoji = typeof value.goalEmoji === "string" && value.goalEmoji.trim() ? value.goalEmoji : null;
+  const tokensSpent =
+    typeof value.tokensSpent === "number" && Number.isFinite(value.tokensSpent) ? Math.floor(value.tokensSpent) : null;
+  const exchangedAt = normalizeTimestamp(value.exchangedAt);
+
+  if (!id || !goalId || !goalName || !goalEmoji || tokensSpent === null || !exchangedAt) {
+    return null;
+  }
+
+  return {
+    id,
+    goalId,
+    goalName,
+    goalEmoji,
+    tokensSpent: clampRequiredTokens(tokensSpent),
+    exchangedAt,
+  };
+}
+
+function normalizeExchangeHistory(value: unknown): ExchangeHistoryEntry[] {
+  return Array.isArray(value)
+    ? value
+        .map(normalizeExchangeHistoryEntry)
+        .filter((entry) => entry !== null)
+        .slice(0, MAX_HISTORY_ENTRIES)
+    : [];
+}
+
 function createNextGoalId(goals: RewardGoal[]): string {
   const usedIds = new Set(goals.map((goal) => goal.id));
   let index = goals.length + 1;
@@ -161,7 +248,50 @@ export function normalizeTokenBoardState(value: unknown): TokenBoardState {
     earnedTokens: Math.min(Math.max(0, earnedTokens), selectedGoal.requiredTokens),
     mode,
     parentPin,
+    premium: normalizePremiumAccess(value.premium),
+    exchangeHistory: normalizeExchangeHistory(value.exchangeHistory),
   };
+}
+
+export function getPremiumStatus(state: TokenBoardState, nowMs: number): PremiumStatus {
+  const normalizedState = normalizeTokenBoardState(state);
+
+  if (normalizedState.premium.premiumPurchasedAt) {
+    return "premium";
+  }
+
+  if (normalizedState.premium.trialStartedAt && nowMs < normalizedState.premium.trialStartedAt + TRIAL_MS) {
+    return "trial";
+  }
+
+  return "free";
+}
+
+export function hasPremiumAccess(state: TokenBoardState, nowMs: number): boolean {
+  return getPremiumStatus(state, nowMs) !== "free";
+}
+
+function getTrialDaysRemaining(state: TokenBoardState, nowMs: number): number {
+  const normalizedState = normalizeTokenBoardState(state);
+  const trialStartedAt = normalizedState.premium.trialStartedAt;
+
+  if (!trialStartedAt || getPremiumStatus(normalizedState, nowMs) !== "trial") {
+    return 0;
+  }
+
+  return Math.max(1, Math.ceil((trialStartedAt + TRIAL_MS - nowMs) / (24 * 60 * 60 * 1000)));
+}
+
+function getAvailableGoals(state: TokenBoardState, nowMs: number): RewardGoal[] {
+  const normalizedState = normalizeTokenBoardState(state);
+  return hasPremiumAccess(normalizedState, nowMs)
+    ? normalizedState.goals
+    : normalizedState.goals.slice(0, FREE_GOAL_LIMIT);
+}
+
+function getSelectedGoal(state: TokenBoardState, nowMs: number): RewardGoal {
+  const availableGoals = getAvailableGoals(state, nowMs);
+  return availableGoals.find((goal) => goal.id === state.selectedGoalId) ?? availableGoals[0] ?? defaultGoal;
 }
 
 export async function loadTokenBoardState(store: TokenBoardStateStore): Promise<TokenBoardState> {
@@ -183,12 +313,16 @@ export async function removeTokenBoardState(store: TokenBoardStateStore): Promis
   await store.remove(TOKEN_BOARD_STATE_KEY);
 }
 
-export function addRewardGoal(state: TokenBoardState, draft: RewardGoalDraft): TokenBoardState {
+export function addRewardGoal(state: TokenBoardState, draft: RewardGoalDraft, nowMs: number): TokenBoardState {
   const normalizedState = normalizeTokenBoardState(state);
   const normalizedDraft = normalizeGoalDraft(draft);
 
   if (!normalizedDraft) {
     throw new Error("Goal name, emoji, and required tokens are required.");
+  }
+
+  if (!hasPremiumAccess(normalizedState, nowMs) && normalizedState.goals.length >= FREE_GOAL_LIMIT) {
+    throw new Error("Premium is required to add more goals.");
   }
 
   const goal: RewardGoal = {
@@ -202,6 +336,8 @@ export function addRewardGoal(state: TokenBoardState, draft: RewardGoalDraft): T
     earnedTokens: 0,
     mode: normalizedState.mode,
     parentPin: normalizedState.parentPin,
+    premium: normalizedState.premium,
+    exchangeHistory: normalizedState.exchangeHistory,
   };
 }
 
@@ -253,9 +389,9 @@ export function deleteRewardGoal(state: TokenBoardState, goalId: string): TokenB
   });
 }
 
-export function selectRewardGoal(state: TokenBoardState, goalId: string): TokenBoardState {
+export function selectRewardGoal(state: TokenBoardState, goalId: string, nowMs: number): TokenBoardState {
   const normalizedState = normalizeTokenBoardState(state);
-  const selectedGoal = normalizedState.goals.find((goal) => goal.id === goalId);
+  const selectedGoal = getAvailableGoals(normalizedState, nowMs).find((goal) => goal.id === goalId);
 
   if (!selectedGoal) {
     return normalizedState;
@@ -268,14 +404,61 @@ export function selectRewardGoal(state: TokenBoardState, goalId: string): TokenB
   });
 }
 
-export function addToken(state: TokenBoardState): TokenBoardState {
+export function addToken(state: TokenBoardState, nowMs: number): TokenBoardState {
   const normalizedState = normalizeTokenBoardState(state);
-  const selectedGoal =
-    normalizedState.goals.find((goal) => goal.id === normalizedState.selectedGoalId) ?? normalizedState.goals[0];
+  const selectedGoal = getSelectedGoal(normalizedState, nowMs);
 
   return normalizeTokenBoardState({
     ...normalizedState,
+    selectedGoalId: selectedGoal.id,
     earnedTokens: Math.min(selectedGoal.requiredTokens, normalizedState.earnedTokens + 1),
+  });
+}
+
+export function exchangeReward(state: TokenBoardState, nowMs: number): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+  const selectedGoal = getSelectedGoal(normalizedState, nowMs);
+  const earnedTokens = Math.min(Math.max(0, normalizedState.earnedTokens), selectedGoal.requiredTokens);
+
+  if (earnedTokens < selectedGoal.requiredTokens) {
+    return normalizedState;
+  }
+
+  const nextHistory = hasPremiumAccess(normalizedState, nowMs)
+    ? [
+        {
+          id: `exchange-${nowMs}`,
+          goalId: selectedGoal.id,
+          goalName: selectedGoal.name,
+          goalEmoji: selectedGoal.emoji,
+          tokensSpent: selectedGoal.requiredTokens,
+          exchangedAt: nowMs,
+        },
+        ...normalizedState.exchangeHistory,
+      ].slice(0, MAX_HISTORY_ENTRIES)
+    : normalizedState.exchangeHistory;
+
+  return normalizeTokenBoardState({
+    ...normalizedState,
+    selectedGoalId: selectedGoal.id,
+    earnedTokens: 0,
+    exchangeHistory: nextHistory,
+  });
+}
+
+export function startPremiumTrial(state: TokenBoardState, nowMs: number): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+
+  if (normalizedState.premium.trialStartedAt || normalizedState.premium.premiumPurchasedAt) {
+    return normalizedState;
+  }
+
+  return normalizeTokenBoardState({
+    ...normalizedState,
+    premium: {
+      ...normalizedState.premium,
+      trialStartedAt: nowMs,
+    },
   });
 }
 
@@ -330,17 +513,17 @@ export function unlockParentMode(state: TokenBoardState, pin: string): TokenBoar
   });
 }
 
-export function createTokenBoardView(state: TokenBoardState): TokenBoardView {
+export function createTokenBoardView(state: TokenBoardState, nowMs: number): TokenBoardView {
   const normalizedState = normalizeTokenBoardState(state);
-  const selectedGoal =
-    normalizedState.goals.find((goal) => goal.id === normalizedState.selectedGoalId) ??
-    normalizedState.goals[0] ??
-    defaultGoal;
+  const goals = getAvailableGoals(normalizedState, nowMs);
+  const selectedGoal = goals.find((goal) => goal.id === normalizedState.selectedGoalId) ?? goals[0] ?? defaultGoal;
   const requiredTokens = Math.max(1, selectedGoal.requiredTokens);
   const earnedTokens = Math.min(Math.max(0, normalizedState.earnedTokens), requiredTokens);
+  const premiumStatus = getPremiumStatus(normalizedState, nowMs);
+  const premiumActive = premiumStatus !== "free";
 
   return {
-    goals: normalizedState.goals.length > 0 ? normalizedState.goals : [defaultGoal],
+    goals: goals.length > 0 ? goals : [defaultGoal],
     selectedGoal,
     earnedTokens,
     requiredTokens,
@@ -348,6 +531,12 @@ export function createTokenBoardView(state: TokenBoardState): TokenBoardView {
     canExchange: earnedTokens >= requiredTokens,
     mode: normalizedState.mode,
     parentPinSet: normalizedState.parentPin !== null,
+    premiumStatus,
+    premiumActive,
+    trialDaysRemaining: getTrialDaysRemaining(normalizedState, nowMs),
+    canStartTrial: !normalizedState.premium.trialStartedAt && !normalizedState.premium.premiumPurchasedAt,
+    canAddGoal: premiumActive || normalizedState.goals.length < FREE_GOAL_LIMIT,
+    exchangeHistory: premiumActive ? normalizedState.exchangeHistory : [],
     slots: Array.from({ length: requiredTokens }, (_, index) => ({
       index,
       filled: index < earnedTokens,
