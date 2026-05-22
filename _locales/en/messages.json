@@ -1,1 +1,63 @@
-{ "extName": { "message": "Token Board" }, "extDesc": { "message": "Collect tokens and trade them for a reward at the goal. A visible reward board for kids." } }
+{
+  "extName": { "message": "Token Board" },
+  "extDesc": { "message": "Collect tokens and trade them for a reward at the goal. A visible reward board for kids." },
+  "add": { "message": "Add" },
+  "addToken": { "message": "Give token" },
+  "cancel": { "message": "Cancel" },
+  "change": { "message": "Change" },
+  "changePin": { "message": "Change PIN" },
+  "childMode": { "message": "Child mode" },
+  "delete": { "message": "Delete" },
+  "edit": { "message": "Edit" },
+  "earnedTokenCount": {
+    "message": "$earned$/$required$ tokens",
+    "placeholders": {
+      "earned": { "content": "$1" },
+      "required": { "content": "$2" }
+    }
+  },
+  "exchangeReady": { "message": "Ready to trade" },
+  "goalBoardLabel": { "message": "Token board" },
+  "goalEditorHeading": { "message": "Goal editor" },
+  "goalEmojiLabel": { "message": "Emoji" },
+  "goalFormError": { "message": "Enter a name, emoji, and required token count." },
+  "goalLabel": { "message": "Goal" },
+  "goalListLabel": { "message": "Goal list" },
+  "goalNameLabel": { "message": "Name" },
+  "modePanelLabel": { "message": "Mode switcher" },
+  "parentMode": { "message": "Parent mode" },
+  "pinLabel": { "message": "PIN" },
+  "pinFormatError": { "message": "Enter a 4 to 8 digit PIN." },
+  "pinMismatchError": { "message": "PIN does not match." },
+  "pinRequiredError": { "message": "Set a 4 to 8 digit PIN first." },
+  "remainingTokens": {
+    "message": "$count$ left",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "removeToken": { "message": "Undo" },
+  "requiredTokensLabel": { "message": "Required" },
+  "set": { "message": "Set" },
+  "setPin": { "message": "Set PIN" },
+  "switchToChildMode": { "message": "Switch to child mode" },
+  "tokenActionsLabel": { "message": "Token actions" },
+  "tokenBoardLabel": { "message": "Token board" },
+  "tokenCount": {
+    "message": "$count$ tokens",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "tokenSlotLabel": {
+    "message": "Token $index$: $status$",
+    "placeholders": {
+      "index": { "content": "$1" },
+      "status": { "content": "$2" }
+    }
+  },
+  "tokenStatusEmpty": { "message": "empty" },
+  "tokenStatusFilled": { "message": "earned" },
+  "unlockParentMode": { "message": "Unlock parent" },
+  "update": { "message": "Update" }
+}

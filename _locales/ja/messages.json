@@ -1,1 +1,63 @@
-{ "extName": { "message": "ごほうびトークン" }, "extDesc": { "message": "トークン(★)を貯めて目標の数になったらごほうびと交換。がんばりを見える化するごほうび表。" } }
+{
+  "extName": { "message": "ごほうびトークン" },
+  "extDesc": { "message": "トークン(★)を貯めて目標の数になったらごほうびと交換。がんばりを見える化するごほうび表。" },
+  "add": { "message": "追加" },
+  "addToken": { "message": "トークンをあげる" },
+  "cancel": { "message": "キャンセル" },
+  "change": { "message": "変更" },
+  "changePin": { "message": "PIN変更" },
+  "childMode": { "message": "子供モード" },
+  "delete": { "message": "削除" },
+  "edit": { "message": "編集" },
+  "earnedTokenCount": {
+    "message": "$earned$/$required$ こ",
+    "placeholders": {
+      "earned": { "content": "$1" },
+      "required": { "content": "$2" }
+    }
+  },
+  "exchangeReady": { "message": "こうかんできるよ" },
+  "goalBoardLabel": { "message": "トークン台紙" },
+  "goalEditorHeading": { "message": "ゴール編集" },
+  "goalEmojiLabel": { "message": "絵文字" },
+  "goalFormError": { "message": "名前・絵文字・必要数を入力してください" },
+  "goalLabel": { "message": "ゴール" },
+  "goalListLabel": { "message": "ゴール一覧" },
+  "goalNameLabel": { "message": "名前" },
+  "modePanelLabel": { "message": "モード切替" },
+  "parentMode": { "message": "保護者モード" },
+  "pinLabel": { "message": "PIN" },
+  "pinFormatError": { "message": "PINは4〜8桁の数字で入力してください" },
+  "pinMismatchError": { "message": "PINが違います" },
+  "pinRequiredError": { "message": "先に4〜8桁のPINを設定してください" },
+  "remainingTokens": {
+    "message": "あと $count$ こ",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "removeToken": { "message": "取り消す" },
+  "requiredTokensLabel": { "message": "必要数" },
+  "set": { "message": "設定" },
+  "setPin": { "message": "PIN設定" },
+  "switchToChildMode": { "message": "子供モードにする" },
+  "tokenActionsLabel": { "message": "トークン操作" },
+  "tokenBoardLabel": { "message": "トークン台紙" },
+  "tokenCount": {
+    "message": "$count$こ",
+    "placeholders": {
+      "count": { "content": "$1" }
+    }
+  },
+  "tokenSlotLabel": {
+    "message": "$index$こ目: $status$",
+    "placeholders": {
+      "index": { "content": "$1" },
+      "status": { "content": "$2" }
+    }
+  },
+  "tokenStatusEmpty": { "message": "未獲得" },
+  "tokenStatusFilled": { "message": "獲得済み" },
+  "unlockParentMode": { "message": "保護者になる" },
+  "update": { "message": "更新" }
+}

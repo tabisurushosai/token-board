@@ -19,10 +19,16 @@ import {
 import { store } from "./storage";
 
 const app = document.querySelector<HTMLDivElement>("#app");
+const appTitle = document.querySelector<HTMLHeadingElement>("#app-title");
 let currentState: TokenBoardState | null = null;
 let editingGoalId: string | null = null;
 let formError = "";
 let modeError = "";
+
+function t(messageName: string, substitutions?: string | string[]): string {
+  const message = chrome.i18n.getMessage(messageName, substitutions);
+  return message || messageName;
+}
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => {
@@ -50,54 +56,54 @@ function renderTokenSlots(view: TokenBoardView): string {
   return view.slots
     .map((slot) => {
       const className = slot.filled ? "token-slot token-slot-filled" : "token-slot";
-      const label = slot.filled ? "獲得済み" : "未獲得";
-      return `<li class="${className}" aria-label="${slot.index + 1}こ目: ${label}">${slot.filled ? "★" : ""}</li>`;
+      const label = slot.filled ? t("tokenStatusFilled") : t("tokenStatusEmpty");
+      return `<li class="${className}" aria-label="${escapeHtml(t("tokenSlotLabel", [String(slot.index + 1), label]))}">${slot.filled ? "★" : ""}</li>`;
     })
     .join("");
 }
 
 function renderExchangeEffect(view: TokenBoardView): string {
   if (!view.canExchange) {
-    return `<p class="remaining-text">あと ${view.remainingTokens} こ</p>`;
+    return `<p class="remaining-text">${escapeHtml(t("remainingTokens", String(view.remainingTokens)))}</p>`;
   }
 
   return `
     <div class="exchange-effect" role="status" aria-live="polite">
       <span class="sparkle sparkle-left" aria-hidden="true">✦</span>
-      <span class="exchange-message">こうかんできるよ</span>
+      <span class="exchange-message">${escapeHtml(t("exchangeReady"))}</span>
       <span class="sparkle sparkle-right" aria-hidden="true">✦</span>
     </div>
   `;
 }
 
 function renderModePanel(view: TokenBoardView): string {
-  const modeLabel = view.mode === "parent" ? "保護者モード" : "子供モード";
+  const modeLabel = view.mode === "parent" ? t("parentMode") : t("childMode");
   const panelBody =
     view.mode === "child"
       ? `
       <form id="parent-unlock-form" class="pin-form">
-        <label class="field-label" for="parent-unlock-pin">PIN</label>
+        <label class="field-label" for="parent-unlock-pin">${escapeHtml(t("pinLabel"))}</label>
         <div class="pin-row">
           <input id="parent-unlock-pin" name="pin" class="text-input" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" required>
-          <button class="primary-button" type="submit">保護者になる</button>
+          <button class="primary-button" type="submit">${escapeHtml(t("unlockParentMode"))}</button>
         </div>
       </form>
     `
       : `
       <form id="parent-pin-form" class="pin-form">
-        <label class="field-label" for="parent-pin">${view.parentPinSet ? "PIN変更" : "PIN設定"}</label>
+        <label class="field-label" for="parent-pin">${escapeHtml(view.parentPinSet ? t("changePin") : t("setPin"))}</label>
         <div class="pin-row">
           <input id="parent-pin" name="pin" class="text-input" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="8" autocomplete="new-password" required>
-          <button class="secondary-button" type="submit">${view.parentPinSet ? "変更" : "設定"}</button>
+          <button class="secondary-button" type="submit">${escapeHtml(view.parentPinSet ? t("change") : t("set"))}</button>
         </div>
       </form>
-      <button class="secondary-button" type="button" data-action="child-mode"${view.parentPinSet ? "" : " disabled"}>子供モードにする</button>
+      <button class="secondary-button" type="button" data-action="child-mode"${view.parentPinSet ? "" : " disabled"}>${escapeHtml(t("switchToChildMode"))}</button>
     `;
 
   return `
-    <section class="mode-panel" aria-label="モード切替">
+    <section class="mode-panel" aria-label="${escapeHtml(t("modePanelLabel"))}">
       <div class="mode-header">
-        <span class="mode-badge">${modeLabel}</span>
+        <span class="mode-badge">${escapeHtml(modeLabel)}</span>
       </div>
       ${panelBody}
       ${modeError ? `<p class="form-error">${escapeHtml(modeError)}</p>` : ""}
@@ -111,7 +117,7 @@ function getEditingGoal(view: TokenBoardView): RewardGoal | null {
 
 function renderGoalForm(view: TokenBoardView): string {
   const editingGoal = getEditingGoal(view);
-  const submitLabel = editingGoal ? "更新" : "追加";
+  const submitLabel = editingGoal ? t("update") : t("add");
   const name = editingGoal?.name ?? "";
   const emoji = editingGoal?.emoji ?? "🎁";
   const requiredTokens = editingGoal?.requiredTokens ?? 10;
@@ -119,23 +125,23 @@ function renderGoalForm(view: TokenBoardView): string {
   return `
     <form id="goal-form" class="goal-form">
       <div class="form-row">
-        <label class="field-label" for="goal-name">名前</label>
+        <label class="field-label" for="goal-name">${escapeHtml(t("goalNameLabel"))}</label>
         <input id="goal-name" name="name" class="text-input" value="${escapeHtml(name)}" maxlength="40" required>
       </div>
       <div class="form-grid">
         <div class="form-row">
-          <label class="field-label" for="goal-emoji">絵文字</label>
+          <label class="field-label" for="goal-emoji">${escapeHtml(t("goalEmojiLabel"))}</label>
           <input id="goal-emoji" name="emoji" class="text-input" value="${escapeHtml(emoji)}" maxlength="8" required>
         </div>
         <div class="form-row">
-          <label class="field-label" for="goal-required-tokens">必要数</label>
+          <label class="field-label" for="goal-required-tokens">${escapeHtml(t("requiredTokensLabel"))}</label>
           <input id="goal-required-tokens" name="requiredTokens" class="text-input" type="number" min="1" max="50" value="${requiredTokens}" required>
         </div>
       </div>
       ${formError ? `<p class="form-error">${escapeHtml(formError)}</p>` : ""}
       <div class="form-actions">
-        <button class="primary-button" type="submit">${submitLabel}</button>
-        ${editingGoal ? '<button class="secondary-button" type="button" data-action="cancel-edit">キャンセル</button>' : ""}
+        <button class="primary-button" type="submit">${escapeHtml(submitLabel)}</button>
+        ${editingGoal ? `<button class="secondary-button" type="button" data-action="cancel-edit">${escapeHtml(t("cancel"))}</button>` : ""}
       </div>
     </form>
   `;
@@ -143,7 +149,7 @@ function renderGoalForm(view: TokenBoardView): string {
 
 function renderGoalList(view: TokenBoardView): string {
   return `
-    <ul class="goal-list" aria-label="ゴール一覧">
+    <ul class="goal-list" aria-label="${escapeHtml(t("goalListLabel"))}">
       ${view.goals
         .map(
           (goal) => `
@@ -151,13 +157,13 @@ function renderGoalList(view: TokenBoardView): string {
               <div class="goal-item-main">
                 <span class="goal-item-emoji" aria-hidden="true">${escapeHtml(goal.emoji)}</span>
                 <span class="goal-item-name">${escapeHtml(goal.name)}</span>
-                <span class="goal-item-count">${goal.requiredTokens}こ</span>
+                <span class="goal-item-count">${escapeHtml(t("tokenCount", String(goal.requiredTokens)))}</span>
               </div>
               <div class="goal-item-actions">
-                <button class="icon-button" type="button" data-action="edit-goal" data-goal-id="${escapeHtml(goal.id)}">編集</button>
+                <button class="icon-button" type="button" data-action="edit-goal" data-goal-id="${escapeHtml(goal.id)}">${escapeHtml(t("edit"))}</button>
                 <button class="icon-button danger-button" type="button" data-action="delete-goal" data-goal-id="${escapeHtml(goal.id)}"${
                   view.goals.length <= 1 ? " disabled" : ""
-                }>削除</button>
+                }>${escapeHtml(t("delete"))}</button>
               </div>
             </li>
           `,
@@ -176,7 +182,7 @@ function render(view: TokenBoardView): string {
     ${renderModePanel(view)}
 
     <section class="goal-panel" aria-labelledby="goal-heading">
-      <label class="field-label" for="goal-select">ゴール</label>
+      <label class="field-label" for="goal-select">${escapeHtml(t("goalLabel"))}</label>
       <select id="goal-select" class="goal-select" aria-describedby="goal-heading">
         ${renderGoalOptions(view)}
       </select>
@@ -185,19 +191,19 @@ function render(view: TokenBoardView): string {
         <span class="goal-emoji" aria-hidden="true">${escapeHtml(view.selectedGoal.emoji)}</span>
         <div>
           <h2>${escapeHtml(view.selectedGoal.name)}</h2>
-          <p>${view.earnedTokens}/${view.requiredTokens} こ</p>
+          <p>${escapeHtml(t("earnedTokenCount", [String(view.earnedTokens), String(view.requiredTokens)]))}</p>
         </div>
       </div>
 
-      <ol class="token-board" aria-label="トークン台紙">
+      <ol class="token-board" aria-label="${escapeHtml(t("tokenBoardLabel"))}">
         ${renderTokenSlots(view)}
       </ol>
 
       ${
         canEdit
-          ? `<div class="token-actions" aria-label="トークン操作">
-        <button class="primary-button" type="button" data-action="add-token"${canAddToken ? "" : " disabled"}>トークンをあげる</button>
-        <button class="secondary-button" type="button" data-action="remove-token"${canRemoveToken ? "" : " disabled"}>取り消す</button>
+          ? `<div class="token-actions" aria-label="${escapeHtml(t("tokenActionsLabel"))}">
+        <button class="primary-button" type="button" data-action="add-token"${canAddToken ? "" : " disabled"}>${escapeHtml(t("addToken"))}</button>
+        <button class="secondary-button" type="button" data-action="remove-token"${canRemoveToken ? "" : " disabled"}>${escapeHtml(t("removeToken"))}</button>
       </div>`
           : ""
       }
@@ -208,7 +214,7 @@ function render(view: TokenBoardView): string {
     ${
       canEdit
         ? `<section class="editor-panel" aria-labelledby="editor-heading">
-      <h3 id="editor-heading">ゴール編集</h3>
+      <h3 id="editor-heading">${escapeHtml(t("goalEditorHeading"))}</h3>
       ${renderGoalForm(view)}
       ${renderGoalList(view)}
     </section>`
@@ -587,6 +593,18 @@ function installStyles(): void {
 
 installStyles();
 
+function installStaticText(): void {
+  const title = t("extName");
+  document.documentElement.lang = chrome.i18n.getUILanguage().startsWith("ja") ? "ja" : "en";
+  document.title = title;
+
+  if (appTitle) {
+    appTitle.textContent = title;
+  }
+}
+
+installStaticText();
+
 function getGoalDraft(form: HTMLFormElement): RewardGoalDraft {
   const formData = new FormData(form);
 
@@ -633,7 +651,7 @@ function handleGoalFormSubmit(event: SubmitEvent): void {
     formError = "";
     void saveAndRender(nextState);
   } catch {
-    formError = "名前・絵文字・必要数を入力してください";
+    formError = t("goalFormError");
     renderCurrentState();
   }
 }
@@ -649,7 +667,7 @@ function handleParentPinFormSubmit(event: SubmitEvent): void {
     modeError = "";
     void saveAndRender(setParentPin(currentState, getPin(event.currentTarget)));
   } catch {
-    modeError = "PINは4〜8桁の数字で入力してください";
+    modeError = t("pinFormatError");
     renderCurrentState();
   }
 }
@@ -665,7 +683,7 @@ function handleParentUnlockFormSubmit(event: SubmitEvent): void {
     modeError = "";
     void saveAndRender(unlockParentMode(currentState, getPin(event.currentTarget)));
   } catch {
-    modeError = "PINが違います";
+    modeError = t("pinMismatchError");
     renderCurrentState();
   }
 }
@@ -694,7 +712,7 @@ function handleAppClick(event: MouseEvent): void {
       modeError = "";
       void saveAndRender(switchToChildMode(currentState));
     } catch {
-      modeError = "先に4〜8桁のPINを設定してください";
+      modeError = t("pinRequiredError");
       renderCurrentState();
     }
     return;
