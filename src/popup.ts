@@ -7,6 +7,9 @@ import {
   removeToken,
   saveTokenBoardState,
   selectRewardGoal,
+  setParentPin,
+  switchToChildMode,
+  unlockParentMode,
   updateRewardGoal,
   type RewardGoal,
   type RewardGoalDraft,
@@ -19,6 +22,7 @@ const app = document.querySelector<HTMLDivElement>("#app");
 let currentState: TokenBoardState | null = null;
 let editingGoalId: string | null = null;
 let formError = "";
+let modeError = "";
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => {
@@ -63,6 +67,41 @@ function renderExchangeEffect(view: TokenBoardView): string {
       <span class="exchange-message">こうかんできるよ</span>
       <span class="sparkle sparkle-right" aria-hidden="true">✦</span>
     </div>
+  `;
+}
+
+function renderModePanel(view: TokenBoardView): string {
+  const modeLabel = view.mode === "parent" ? "保護者モード" : "子供モード";
+  const panelBody =
+    view.mode === "child"
+      ? `
+      <form id="parent-unlock-form" class="pin-form">
+        <label class="field-label" for="parent-unlock-pin">PIN</label>
+        <div class="pin-row">
+          <input id="parent-unlock-pin" name="pin" class="text-input" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" required>
+          <button class="primary-button" type="submit">保護者になる</button>
+        </div>
+      </form>
+    `
+      : `
+      <form id="parent-pin-form" class="pin-form">
+        <label class="field-label" for="parent-pin">${view.parentPinSet ? "PIN変更" : "PIN設定"}</label>
+        <div class="pin-row">
+          <input id="parent-pin" name="pin" class="text-input" type="password" inputmode="numeric" pattern="[0-9]*" minlength="4" maxlength="8" autocomplete="new-password" required>
+          <button class="secondary-button" type="submit">${view.parentPinSet ? "変更" : "設定"}</button>
+        </div>
+      </form>
+      <button class="secondary-button" type="button" data-action="child-mode"${view.parentPinSet ? "" : " disabled"}>子供モードにする</button>
+    `;
+
+  return `
+    <section class="mode-panel" aria-label="モード切替">
+      <div class="mode-header">
+        <span class="mode-badge">${modeLabel}</span>
+      </div>
+      ${panelBody}
+      ${modeError ? `<p class="form-error">${escapeHtml(modeError)}</p>` : ""}
+    </section>
   `;
 }
 
@@ -131,8 +170,11 @@ function renderGoalList(view: TokenBoardView): string {
 function render(view: TokenBoardView): string {
   const canAddToken = view.earnedTokens < view.requiredTokens;
   const canRemoveToken = view.earnedTokens > 0;
+  const canEdit = view.mode === "parent";
 
   return `
+    ${renderModePanel(view)}
+
     <section class="goal-panel" aria-labelledby="goal-heading">
       <label class="field-label" for="goal-select">ゴール</label>
       <select id="goal-select" class="goal-select" aria-describedby="goal-heading">
@@ -151,19 +193,27 @@ function render(view: TokenBoardView): string {
         ${renderTokenSlots(view)}
       </ol>
 
-      <div class="token-actions" aria-label="トークン操作">
+      ${
+        canEdit
+          ? `<div class="token-actions" aria-label="トークン操作">
         <button class="primary-button" type="button" data-action="add-token"${canAddToken ? "" : " disabled"}>トークンをあげる</button>
         <button class="secondary-button" type="button" data-action="remove-token"${canRemoveToken ? "" : " disabled"}>取り消す</button>
-      </div>
+      </div>`
+          : ""
+      }
 
       ${renderExchangeEffect(view)}
     </section>
 
-    <section class="editor-panel" aria-labelledby="editor-heading">
+    ${
+      canEdit
+        ? `<section class="editor-panel" aria-labelledby="editor-heading">
       <h3 id="editor-heading">ゴール編集</h3>
       ${renderGoalForm(view)}
       ${renderGoalList(view)}
-    </section>
+    </section>`
+        : ""
+    }
   `;
 }
 
@@ -193,6 +243,33 @@ function installStyles(): void {
     .goal-panel {
       display: grid;
       gap: 12px;
+    }
+
+    .mode-panel {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #e1e7ea;
+    }
+
+    .mode-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mode-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border-radius: 6px;
+      background: #e8f3ff;
+      color: #244057;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 2px 8px;
     }
 
     .editor-panel {
@@ -228,6 +305,17 @@ function installStyles(): void {
     .form-row {
       display: grid;
       gap: 4px;
+    }
+
+    .pin-form {
+      display: grid;
+      gap: 4px;
+    }
+
+    .pin-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
     }
 
     .form-grid {
@@ -509,6 +597,11 @@ function getGoalDraft(form: HTMLFormElement): RewardGoalDraft {
   };
 }
 
+function getPin(form: HTMLFormElement): string {
+  const formData = new FormData(form);
+  return String(formData.get("pin") ?? "");
+}
+
 async function saveAndRender(nextState: TokenBoardState): Promise<void> {
   currentState = nextState;
   await saveTokenBoardState(store, nextState);
@@ -526,7 +619,7 @@ function renderCurrentState(): void {
 function handleGoalFormSubmit(event: SubmitEvent): void {
   event.preventDefault();
 
-  if (!currentState || !(event.currentTarget instanceof HTMLFormElement)) {
+  if (!currentState || currentState.mode !== "parent" || !(event.currentTarget instanceof HTMLFormElement)) {
     return;
   }
 
@@ -545,6 +638,38 @@ function handleGoalFormSubmit(event: SubmitEvent): void {
   }
 }
 
+function handleParentPinFormSubmit(event: SubmitEvent): void {
+  event.preventDefault();
+
+  if (!currentState || !(event.currentTarget instanceof HTMLFormElement)) {
+    return;
+  }
+
+  try {
+    modeError = "";
+    void saveAndRender(setParentPin(currentState, getPin(event.currentTarget)));
+  } catch {
+    modeError = "PINは4〜8桁の数字で入力してください";
+    renderCurrentState();
+  }
+}
+
+function handleParentUnlockFormSubmit(event: SubmitEvent): void {
+  event.preventDefault();
+
+  if (!currentState || !(event.currentTarget instanceof HTMLFormElement)) {
+    return;
+  }
+
+  try {
+    modeError = "";
+    void saveAndRender(unlockParentMode(currentState, getPin(event.currentTarget)));
+  } catch {
+    modeError = "PINが違います";
+    renderCurrentState();
+  }
+}
+
 function handleAppClick(event: MouseEvent): void {
   const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>("button[data-action]");
 
@@ -559,6 +684,23 @@ function handleAppClick(event: MouseEvent): void {
     editingGoalId = null;
     formError = "";
     renderCurrentState();
+    return;
+  }
+
+  if (action === "child-mode") {
+    try {
+      editingGoalId = null;
+      formError = "";
+      modeError = "";
+      void saveAndRender(switchToChildMode(currentState));
+    } catch {
+      modeError = "先に4〜8桁のPINを設定してください";
+      renderCurrentState();
+    }
+    return;
+  }
+
+  if (currentState.mode !== "parent") {
     return;
   }
 
@@ -603,11 +745,24 @@ app?.addEventListener("change", (event) => {
   const select = event.target as HTMLSelectElement;
   editingGoalId = null;
   formError = "";
+  modeError = "";
   void saveAndRender(selectRewardGoal(currentState, select.value));
 });
 app?.addEventListener("submit", (event) => {
-  if ((event.target as HTMLElement | null)?.id === "goal-form") {
+  const targetId = (event.target as HTMLElement | null)?.id;
+
+  if (targetId === "goal-form") {
     handleGoalFormSubmit(event);
+    return;
+  }
+
+  if (targetId === "parent-pin-form") {
+    handleParentPinFormSubmit(event);
+    return;
+  }
+
+  if (targetId === "parent-unlock-form") {
+    handleParentUnlockFormSubmit(event);
   }
 });
 

@@ -11,10 +11,14 @@ export interface RewardGoalDraft {
   requiredTokens: number;
 }
 
+export type AppMode = "parent" | "child";
+
 export interface TokenBoardState {
   goals: RewardGoal[];
   selectedGoalId: string;
   earnedTokens: number;
+  mode: AppMode;
+  parentPin: string | null;
 }
 
 export interface TokenBoardStateStore {
@@ -35,6 +39,8 @@ export interface TokenBoardView {
   requiredTokens: number;
   remainingTokens: number;
   canExchange: boolean;
+  mode: AppMode;
+  parentPinSet: boolean;
   slots: TokenSlot[];
 }
 
@@ -53,6 +59,8 @@ export function createInitialTokenBoardState(): TokenBoardState {
     goals: [defaultGoal],
     selectedGoalId: defaultGoal.id,
     earnedTokens: 0,
+    mode: "parent",
+    parentPin: null,
   };
 }
 
@@ -105,6 +113,15 @@ function normalizeGoalDraft(draft: RewardGoalDraft): RewardGoalDraft | null {
   };
 }
 
+function normalizeParentPin(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const pin = value.trim();
+  return /^\d{4,8}$/.test(pin) ? pin : null;
+}
+
 function createNextGoalId(goals: RewardGoal[]): string {
   const usedIds = new Set(goals.map((goal) => goal.id));
   let index = goals.length + 1;
@@ -135,11 +152,15 @@ export function normalizeTokenBoardState(value: unknown): TokenBoardState {
   const selectedGoal = goals.find((goal) => goal.id === selectedGoalId) ?? goals[0];
   const earnedTokens =
     typeof value.earnedTokens === "number" && Number.isFinite(value.earnedTokens) ? Math.floor(value.earnedTokens) : 0;
+  const parentPin = normalizeParentPin(value.parentPin);
+  const mode = parentPin && value.mode === "child" ? "child" : "parent";
 
   return {
     goals,
     selectedGoalId,
     earnedTokens: Math.min(Math.max(0, earnedTokens), selectedGoal.requiredTokens),
+    mode,
+    parentPin,
   };
 }
 
@@ -173,6 +194,8 @@ export function addRewardGoal(state: TokenBoardState, draft: RewardGoalDraft): T
     goals: [...normalizedState.goals, goal],
     selectedGoalId: goal.id,
     earnedTokens: 0,
+    mode: normalizedState.mode,
+    parentPin: normalizedState.parentPin,
   };
 }
 
@@ -195,6 +218,7 @@ export function updateRewardGoal(state: TokenBoardState, goalId: string, draft: 
   const selectedGoal = goals.find((goal) => goal.id === normalizedState.selectedGoalId) ?? goals[0];
 
   return normalizeTokenBoardState({
+    ...normalizedState,
     goals,
     selectedGoalId: normalizedState.selectedGoalId,
     earnedTokens:
@@ -216,6 +240,7 @@ export function deleteRewardGoal(state: TokenBoardState, goalId: string): TokenB
     normalizedState.selectedGoalId === goalId ? (goals[0]?.id ?? defaultGoal.id) : normalizedState.selectedGoalId;
 
   return normalizeTokenBoardState({
+    ...normalizedState,
     goals,
     selectedGoalId,
     earnedTokens: normalizedState.selectedGoalId === goalId ? 0 : normalizedState.earnedTokens,
@@ -257,6 +282,48 @@ export function removeToken(state: TokenBoardState): TokenBoardState {
   });
 }
 
+export function setParentPin(state: TokenBoardState, pin: string): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+  const parentPin = normalizeParentPin(pin);
+
+  if (!parentPin) {
+    throw new Error("Parent PIN must be 4 to 8 digits.");
+  }
+
+  return normalizeTokenBoardState({
+    ...normalizedState,
+    mode: "parent",
+    parentPin,
+  });
+}
+
+export function switchToChildMode(state: TokenBoardState): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+
+  if (!normalizedState.parentPin) {
+    throw new Error("Parent PIN is required before child mode.");
+  }
+
+  return normalizeTokenBoardState({
+    ...normalizedState,
+    mode: "child",
+  });
+}
+
+export function unlockParentMode(state: TokenBoardState, pin: string): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+  const parentPin = normalizeParentPin(pin);
+
+  if (!normalizedState.parentPin || parentPin !== normalizedState.parentPin) {
+    throw new Error("Parent PIN does not match.");
+  }
+
+  return normalizeTokenBoardState({
+    ...normalizedState,
+    mode: "parent",
+  });
+}
+
 export function createTokenBoardView(state: TokenBoardState): TokenBoardView {
   const normalizedState = normalizeTokenBoardState(state);
   const selectedGoal =
@@ -273,6 +340,8 @@ export function createTokenBoardView(state: TokenBoardState): TokenBoardView {
     requiredTokens,
     remainingTokens: Math.max(0, requiredTokens - earnedTokens),
     canExchange: earnedTokens >= requiredTokens,
+    mode: normalizedState.mode,
+    parentPinSet: normalizedState.parentPin !== null,
     slots: Array.from({ length: requiredTokens }, (_, index) => ({
       index,
       filled: index < earnedTokens,

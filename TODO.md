@@ -5,7 +5,7 @@
 - [x] T003: トークン付与・取り消し、台紙に貯まり表示
 - [x] T004: 目標到達で交換演出(キラキラ+「こうかんできるよ」)
 - [x] T005: 複数ゴールの切替
-- [ ] T006: 保護者/子供モード切替を簡易PIN(storage.local)で実装
+- [x] T006: 保護者/子供モード切替を簡易PIN(storage.local)で実装
 - [ ] T007: 起動時に storage.local から全状態を復元
 - [ ] T008: _locales ja/en を chrome.i18n で全UIに適用
 - [ ] T009: Premiumゲート(7日トライアル + Stripe Checkout URL)。無料はゴール1つ、Premiumで無制限+交換履歴
