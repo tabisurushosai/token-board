@@ -5,6 +5,12 @@ export interface RewardGoal {
   requiredTokens: number;
 }
 
+export interface RewardGoalDraft {
+  name: string;
+  emoji: string;
+  requiredTokens: number;
+}
+
 export interface TokenBoardState {
   goals: RewardGoal[];
   selectedGoalId: string;
@@ -39,6 +45,7 @@ const defaultGoal: RewardGoal = {
 };
 
 export const TOKEN_BOARD_STATE_KEY = "tokenBoardState";
+const MAX_REQUIRED_TOKENS = 50;
 
 export function createInitialTokenBoardState(): TokenBoardState {
   return {
@@ -73,8 +80,41 @@ function normalizeGoal(value: unknown): RewardGoal | null {
     id,
     name,
     emoji,
-    requiredTokens: Math.max(1, requiredTokens),
+    requiredTokens: clampRequiredTokens(requiredTokens),
   };
+}
+
+function clampRequiredTokens(value: number): number {
+  return Math.min(MAX_REQUIRED_TOKENS, Math.max(1, value));
+}
+
+function normalizeGoalDraft(draft: RewardGoalDraft): RewardGoalDraft | null {
+  const name = draft.name.trim();
+  const emoji = draft.emoji.trim();
+  const requiredTokens = Number.isFinite(draft.requiredTokens) ? Math.floor(draft.requiredTokens) : null;
+
+  if (!name || !emoji || requiredTokens === null) {
+    return null;
+  }
+
+  return {
+    name,
+    emoji,
+    requiredTokens: clampRequiredTokens(requiredTokens),
+  };
+}
+
+function createNextGoalId(goals: RewardGoal[]): string {
+  const usedIds = new Set(goals.map((goal) => goal.id));
+  let index = goals.length + 1;
+  let id = `goal-${index}`;
+
+  while (usedIds.has(id)) {
+    index += 1;
+    id = `goal-${index}`;
+  }
+
+  return id;
 }
 
 export function normalizeTokenBoardState(value: unknown): TokenBoardState {
@@ -113,6 +153,72 @@ export async function saveTokenBoardState(store: TokenBoardStateStore, state: To
 
 export async function removeTokenBoardState(store: TokenBoardStateStore): Promise<void> {
   await store.remove(TOKEN_BOARD_STATE_KEY);
+}
+
+export function addRewardGoal(state: TokenBoardState, draft: RewardGoalDraft): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+  const normalizedDraft = normalizeGoalDraft(draft);
+
+  if (!normalizedDraft) {
+    throw new Error("Goal name, emoji, and required tokens are required.");
+  }
+
+  const goal: RewardGoal = {
+    id: createNextGoalId(normalizedState.goals),
+    ...normalizedDraft,
+  };
+
+  return {
+    goals: [...normalizedState.goals, goal],
+    selectedGoalId: goal.id,
+    earnedTokens: 0,
+  };
+}
+
+export function updateRewardGoal(state: TokenBoardState, goalId: string, draft: RewardGoalDraft): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+  const normalizedDraft = normalizeGoalDraft(draft);
+
+  if (!normalizedDraft) {
+    throw new Error("Goal name, emoji, and required tokens are required.");
+  }
+
+  const goals = normalizedState.goals.map((goal) =>
+    goal.id === goalId
+      ? {
+          ...goal,
+          ...normalizedDraft,
+        }
+      : goal,
+  );
+  const selectedGoal = goals.find((goal) => goal.id === normalizedState.selectedGoalId) ?? goals[0];
+
+  return normalizeTokenBoardState({
+    goals,
+    selectedGoalId: normalizedState.selectedGoalId,
+    earnedTokens:
+      selectedGoal.id === normalizedState.selectedGoalId
+        ? Math.min(normalizedState.earnedTokens, selectedGoal.requiredTokens)
+        : normalizedState.earnedTokens,
+  });
+}
+
+export function deleteRewardGoal(state: TokenBoardState, goalId: string): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+
+  if (normalizedState.goals.length <= 1) {
+    return normalizedState;
+  }
+
+  const goals = normalizedState.goals.filter((goal) => goal.id !== goalId);
+  const selectedGoalId =
+    normalizedState.selectedGoalId === goalId ? (goals[0]?.id ?? defaultGoal.id) : normalizedState.selectedGoalId;
+
+  return normalizeTokenBoardState({
+    goals,
+    selectedGoalId,
+    earnedTokens: normalizedState.selectedGoalId === goalId ? 0 : normalizedState.earnedTokens,
+  });
 }
 
 export function createTokenBoardView(state: TokenBoardState): TokenBoardView {
