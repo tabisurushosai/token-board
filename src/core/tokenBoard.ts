@@ -222,6 +222,21 @@ export function deleteRewardGoal(state: TokenBoardState, goalId: string): TokenB
   });
 }
 
+export function selectRewardGoal(state: TokenBoardState, goalId: string): TokenBoardState {
+  const normalizedState = normalizeTokenBoardState(state);
+  const selectedGoal = normalizedState.goals.find((goal) => goal.id === goalId);
+
+  if (!selectedGoal) {
+    return normalizedState;
+  }
+
+  return normalizeTokenBoardState({
+    ...normalizedState,
+    selectedGoalId: selectedGoal.id,
+    earnedTokens: Math.min(normalizedState.earnedTokens, selectedGoal.requiredTokens),
+  });
+}
+
 export function addToken(state: TokenBoardState): TokenBoardState {
   const normalizedState = normalizeTokenBoardState(state);
   const selectedGoal =

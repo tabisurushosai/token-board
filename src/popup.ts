@@ -6,6 +6,7 @@ import {
   loadTokenBoardState,
   removeToken,
   saveTokenBoardState,
+  selectRewardGoal,
   updateRewardGoal,
   type RewardGoal,
   type RewardGoalDraft,
@@ -594,6 +595,16 @@ function handleAppClick(event: MouseEvent): void {
 }
 
 app?.addEventListener("click", handleAppClick);
+app?.addEventListener("change", (event) => {
+  if (!currentState || (event.target as HTMLElement | null)?.id !== "goal-select") {
+    return;
+  }
+
+  const select = event.target as HTMLSelectElement;
+  editingGoalId = null;
+  formError = "";
+  void saveAndRender(selectRewardGoal(currentState, select.value));
+});
 app?.addEventListener("submit", (event) => {
   if ((event.target as HTMLElement | null)?.id === "goal-form") {
     handleGoalFormSubmit(event);
