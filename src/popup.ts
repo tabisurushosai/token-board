@@ -51,6 +51,20 @@ function renderTokenSlots(view: TokenBoardView): string {
     .join("");
 }
 
+function renderExchangeEffect(view: TokenBoardView): string {
+  if (!view.canExchange) {
+    return `<p class="remaining-text">あと ${view.remainingTokens} こ</p>`;
+  }
+
+  return `
+    <div class="exchange-effect" role="status" aria-live="polite">
+      <span class="sparkle sparkle-left" aria-hidden="true">✦</span>
+      <span class="exchange-message">こうかんできるよ</span>
+      <span class="sparkle sparkle-right" aria-hidden="true">✦</span>
+    </div>
+  `;
+}
+
 function getEditingGoal(view: TokenBoardView): RewardGoal | null {
   return editingGoalId ? (view.goals.find((goal) => goal.id === editingGoalId) ?? null) : null;
 }
@@ -141,7 +155,7 @@ function render(view: TokenBoardView): string {
         <button class="secondary-button" type="button" data-action="remove-token"${canRemoveToken ? "" : " disabled"}>取り消す</button>
       </div>
 
-      <p class="remaining-text">あと ${view.remainingTokens} こ</p>
+      ${renderExchangeEffect(view)}
     </section>
 
     <section class="editor-panel" aria-labelledby="editor-heading">
@@ -344,6 +358,100 @@ function installStyles(): void {
       margin: 0;
       font-weight: 700;
       color: #2f5f51;
+    }
+
+    .exchange-effect {
+      position: relative;
+      display: grid;
+      grid-template-columns: 24px 1fr 24px;
+      align-items: center;
+      gap: 6px;
+      min-height: 38px;
+      border: 2px solid #f2bf3b;
+      border-radius: 8px;
+      background: #fff3c4;
+      color: #7a4d00;
+      font-weight: 800;
+      overflow: hidden;
+      padding: 6px 8px;
+      text-align: center;
+    }
+
+    .exchange-effect::before,
+    .exchange-effect::after {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ffffff;
+      box-shadow:
+        36px 8px 0 #f9d76b,
+        76px 20px 0 #ffffff,
+        148px 7px 0 #f9d76b,
+        212px 19px 0 #ffffff;
+      content: "";
+      opacity: 0.85;
+    }
+
+    .exchange-effect::before {
+      left: 10px;
+      top: 8px;
+      animation: sparkle-drift 1.7s ease-in-out infinite;
+    }
+
+    .exchange-effect::after {
+      bottom: 10px;
+      left: 28px;
+      animation: sparkle-drift 1.7s ease-in-out 0.45s infinite reverse;
+    }
+
+    .exchange-message {
+      position: relative;
+      z-index: 1;
+      font-size: 16px;
+      line-height: 1.2;
+    }
+
+    .sparkle {
+      position: relative;
+      z-index: 1;
+      color: #f5a400;
+      font-size: 20px;
+      line-height: 1;
+      animation: sparkle-pop 0.9s ease-in-out infinite alternate;
+    }
+
+    .sparkle-right {
+      animation-delay: 0.2s;
+    }
+
+    @keyframes sparkle-pop {
+      from {
+        transform: scale(0.82) rotate(-8deg);
+      }
+
+      to {
+        transform: scale(1.18) rotate(8deg);
+      }
+    }
+
+    @keyframes sparkle-drift {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(5px);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .exchange-effect::before,
+      .exchange-effect::after,
+      .sparkle {
+        animation: none;
+      }
     }
 
     .goal-list {

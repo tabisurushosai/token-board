@@ -34,6 +34,7 @@ export interface TokenBoardView {
   earnedTokens: number;
   requiredTokens: number;
   remainingTokens: number;
+  canExchange: boolean;
   slots: TokenSlot[];
 }
 
@@ -256,6 +257,7 @@ export function createTokenBoardView(state: TokenBoardState): TokenBoardView {
     earnedTokens,
     requiredTokens,
     remainingTokens: Math.max(0, requiredTokens - earnedTokens),
+    canExchange: earnedTokens >= requiredTokens,
     slots: Array.from({ length: requiredTokens }, (_, index) => ({
       index,
       filled: index < earnedTokens,
