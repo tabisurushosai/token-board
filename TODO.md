@@ -6,7 +6,7 @@
 - [x] T004: 目標到達で交換演出(キラキラ+「こうかんできるよ」)
 - [x] T005: 複数ゴールの切替
 - [x] T006: 保護者/子供モード切替を簡易PIN(storage.local)で実装
-- [ ] T007: 起動時に storage.local から全状態を復元
+- [x] T007: 起動時に storage.local から全状態を復元
 - [ ] T008: _locales ja/en を chrome.i18n で全UIに適用
 - [ ] T009: Premiumゲート(7日トライアル + Stripe Checkout URL)。無料はゴール1つ、Premiumで無制限+交換履歴
 - [ ] T010: npm run build を通し ts/lint を解消

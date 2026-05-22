@@ -3,8 +3,8 @@ import {
   addRewardGoal,
   createTokenBoardView,
   deleteRewardGoal,
-  loadTokenBoardState,
   removeToken,
+  restoreTokenBoardState,
   saveTokenBoardState,
   selectRewardGoal,
   setParentPin,
@@ -771,7 +771,7 @@ async function mount(): Promise<void> {
     return;
   }
 
-  currentState = await loadTokenBoardState(store);
+  currentState = await restoreTokenBoardState(store);
   renderCurrentState();
 }
 

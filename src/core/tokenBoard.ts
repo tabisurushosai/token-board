@@ -169,6 +169,12 @@ export async function loadTokenBoardState(store: TokenBoardStateStore): Promise<
   return normalizeTokenBoardState(savedState);
 }
 
+export async function restoreTokenBoardState(store: TokenBoardStateStore): Promise<TokenBoardState> {
+  const state = await loadTokenBoardState(store);
+  await saveTokenBoardState(store, state);
+  return state;
+}
+
 export async function saveTokenBoardState(store: TokenBoardStateStore, state: TokenBoardState): Promise<void> {
   await store.set(TOKEN_BOARD_STATE_KEY, normalizeTokenBoardState(state));
 }
