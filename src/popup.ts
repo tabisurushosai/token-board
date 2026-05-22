@@ -1,8 +1,10 @@
 import {
+  addToken,
   addRewardGoal,
   createTokenBoardView,
   deleteRewardGoal,
   loadTokenBoardState,
+  removeToken,
   saveTokenBoardState,
   updateRewardGoal,
   type RewardGoal,
@@ -112,6 +114,9 @@ function renderGoalList(view: TokenBoardView): string {
 }
 
 function render(view: TokenBoardView): string {
+  const canAddToken = view.earnedTokens < view.requiredTokens;
+  const canRemoveToken = view.earnedTokens > 0;
+
   return `
     <section class="goal-panel" aria-labelledby="goal-heading">
       <label class="field-label" for="goal-select">ゴール</label>
@@ -130,6 +135,11 @@ function render(view: TokenBoardView): string {
       <ol class="token-board" aria-label="トークン台紙">
         ${renderTokenSlots(view)}
       </ol>
+
+      <div class="token-actions" aria-label="トークン操作">
+        <button class="primary-button" type="button" data-action="add-token"${canAddToken ? "" : " disabled"}>トークンをあげる</button>
+        <button class="secondary-button" type="button" data-action="remove-token"${canRemoveToken ? "" : " disabled"}>取り消す</button>
+      </div>
 
       <p class="remaining-text">あと ${view.remainingTokens} こ</p>
     </section>
@@ -229,9 +239,15 @@ function installStyles(): void {
     }
 
     .form-actions,
+    .token-actions,
     .goal-item-actions {
       display: flex;
       gap: 8px;
+    }
+
+    .token-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
     }
 
     button {
@@ -434,6 +450,18 @@ function handleAppClick(event: MouseEvent): void {
     editingGoalId = null;
     formError = "";
     renderCurrentState();
+    return;
+  }
+
+  if (action === "add-token") {
+    formError = "";
+    void saveAndRender(addToken(currentState));
+    return;
+  }
+
+  if (action === "remove-token") {
+    formError = "";
+    void saveAndRender(removeToken(currentState));
     return;
   }
 
