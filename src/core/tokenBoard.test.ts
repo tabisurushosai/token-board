@@ -22,10 +22,10 @@ describe("token board core", () => {
   it("records exchange history only while premium access is active", () => {
     const now = 1_000;
     const trialState = startPremiumTrial(createInitialTokenBoardState(), now);
-    const filledState = Array.from({ length: 10 }).reduce(
-      (state) => addToken(state, now),
-      trialState,
-    );
+    let filledState = trialState;
+    for (let index = 0; index < 10; index += 1) {
+      filledState = addToken(filledState, now);
+    }
     const exchangedState = exchangeReward(filledState, now + 1);
     const view = createTokenBoardView(exchangedState, now + 1);
 
